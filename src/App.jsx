@@ -2,21 +2,55 @@
 
 import { useEffect, useState } from 'react'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
-
-const getStored = (key, fallback) => JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback))
+import {
+  signupWorker,
+  signinWorker,
+  signoutWorker,
+  getCurrentUser,
+  getAssignedPeople,
+  batchUpdateFollowups
+} from './lib/supabaseAPI'
 
 function App() {
   const [view, setView] = useState('home')
   const [authMode, setAuthMode] = useState('signin') // 'signin' or 'signup'
   const [activeUser, setActiveUser] = useState(null)
-  const [people, setPeople] = useState(() => getStored('cc-people', []))
+  const [people, setPeople] = useState([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [initializing, setInitializing] = useState(true)
 
-  // Sync people to localStorage
-  useEffect(() => localStorage.setItem('cc-people', JSON.stringify(people)), [people])
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const user = await getCurrentUser()
+        if (user) {
+          setActiveUser(user)
+          // Load their assigned people
+          const assignedPeople = await getAssignedPeople(user.id)
+          setPeople(assignedPeople)
+          setView('dashboard')
+        }
+      } catch (err) {
+        console.error('Auth check failed:', err)
+      } finally {
+        setInitializing(false)
+      }
+    }
 
-  const goHome = () => { setView('home'); setMessage(''); setAuthMode('signin') }
+    if (isSupabaseConfigured) {
+      checkAuth()
+    } else {
+      setInitializing(false)
+    }
+  }, [])
+
+  const goHome = () => {
+    setView('home')
+    setMessage('')
+    setAuthMode('signin')
+  }
 
   const updatePerson = (id, field, value) => {
     setPeople((current) =>
@@ -29,57 +63,63 @@ function App() {
   // ===== FOLLOW-UP AUTH FLOW =====
   const handleFollowupAuth = async (event) => {
     event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const name = data.get('name')?.trim()
-    const code = data.get('code')?.trim().toUpperCase()
 
-    if (!name || !code) {
-      setMessage('Please fill in all fields.')
+    if (!isSupabaseConfigured) {
+      setMessage('Supabase is not configured. Please add environment variables.')
       return
     }
 
-    if (authMode === 'signup') {
-      // Create new user with code
-      const team = getStored('cc-team', [])
-      const exists = team.find((item) => item.code === code)
+    setLoading(true)
+    const data = new FormData(event.currentTarget)
+    const email = data.get('email')?.trim().toLowerCase()
+    const password = data.get('password')?.trim()
+    const fullName = data.get('name')?.trim()
 
-      if (exists) {
-        setMessage('This code already exists. Please choose a different one.')
+    try {
+      let result
+
+      if (authMode === 'signup') {
+        if (!fullName) {
+          setMessage('Please provide your full name.')
+          setLoading(false)
+          return
+        }
+        result = await signupWorker(email, password, fullName)
+      } else {
+        result = await signinWorker(email, password)
+      }
+
+      if (!result.success) {
+        setMessage(result.error)
+        setLoading(false)
         return
       }
 
-      const newMember = { id: Date.now(), name, code }
-      const updatedTeam = [...team, newMember]
-      localStorage.setItem('cc-team', JSON.stringify(updatedTeam))
-
-      setActiveUser(newMember)
-      setView('dashboard')
-      setAuthMode('signin')
-      setMessage('')
-    } else {
-      // Sign in with existing code
-      const team = getStored('cc-team', [])
-      const member = team.find((item) => item.code === code)
-
-      if (!member) {
-        setMessage('We could not find these credentials. Please check with your administrator.')
-        return
+      if (authMode === 'signup') {
+        setMessage('Account created! Check your email to verify, then sign in.')
+        setAuthMode('signin')
+      } else {
+        // Get current user and their assigned people
+        const user = await getCurrentUser()
+        if (user) {
+          setActiveUser(user)
+          const assignedPeople = await getAssignedPeople(user.id)
+          setPeople(assignedPeople)
+          setView('dashboard')
+          setMessage('')
+        }
       }
-
-      if (member.name.toLowerCase() !== name.toLowerCase()) {
-        setMessage('The name does not match these credentials.')
-        return
-      }
-
-      setActiveUser(member)
-      setView('dashboard')
-      setMessage('')
+    } catch (err) {
+      setMessage(err.message || 'Authentication failed. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
   // ===== ATTENDANCE FLOW =====
   const submitAttendance = async (event) => {
     event.preventDefault()
+
     if (!isSupabaseConfigured) {
       setMessage('Attendance setup is not complete yet. Please add the Supabase environment values.')
       return
@@ -114,43 +154,36 @@ function App() {
   const submitFollowupUpdates = async (event) => {
     event.preventDefault()
 
-    if (!isSupabaseConfigured) {
+    if (!isSupabaseConfigured || !activeUser) {
       setMessage('Follow-up system is not fully set up. Please contact your administrator.')
       return
     }
 
     setLoading(true)
     try {
-      // Collect all updated person records from the form
+      // Collect all updated person records
       const formData = new FormData(event.currentTarget)
       const updates = []
 
-      for (const [key, value] of formData.entries()) {
-        if (key.startsWith('person-')) {
-          const [_, personId, field] = key.split('-')
-          const updateIndex = updates.findIndex((u) => u.personId === personId)
-
-          if (updateIndex === -1) {
-            updates.push({ personId, [field]: value })
-          } else {
-            updates[updateIndex][field] = value
-          }
-        }
-      }
-
-      // Update local state
-      updates.forEach((update) => {
-        const person = people.find((p) => String(p.id) === update.personId)
-        if (person) {
-          Object.keys(update).forEach((key) => {
-            if (key !== 'personId') {
-              updatePerson(person.id, key, update[key])
-            }
-          })
-        }
+      people.forEach((person) => {
+        updates.push({
+          assignmentId: person.assignmentId,
+          called: formData.get(`person-${person.id}-called`) === 'true',
+          texted: formData.get(`person-${person.id}-texted`) === 'true',
+          note: formData.get(`person-${person.id}-note`) || '',
+          status: formData.get(`person-${person.id}-status`) || person.status,
+          service: formData.get(`person-${person.id}-service`) || person.service
+        })
       })
 
-      setMessage('Follow-up updates saved successfully!')
+      // Batch update to Supabase
+      const result = await batchUpdateFollowups(updates)
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      setMessage(`✓ Weekly updates saved successfully for ${result.count} member${result.count > 1 ? 's' : ''}!`)
       setTimeout(() => setMessage(''), 3000)
     } catch (err) {
       setMessage(err.message || 'Failed to save updates.')
@@ -160,12 +193,35 @@ function App() {
   }
 
   // ===== SIGN OUT =====
-  const handleSignOut = () => {
-    setActiveUser(null)
-    goHome()
+  const handleSignOut = async () => {
+    setLoading(true)
+    try {
+      const result = await signoutWorker()
+      if (result.success) {
+        setActiveUser(null)
+        setPeople([])
+        goHome()
+      } else {
+        setMessage(result.error)
+      }
+    } catch (err) {
+      setMessage('Sign out failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ===== VIEWS =====
+
+  if (initializing) {
+    return (
+      <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#fbfaf5' }}>
+        <div style={{ textAlign: 'center', color: '#748078' }}>
+          <p style={{ fontSize: '18px', marginBottom: '10px' }}>Loading...</p>
+        </div>
+      </main>
+    )
+  }
 
   // HOME VIEW
   if (view === 'home') {
@@ -228,8 +284,8 @@ function App() {
             <h1>{authMode === 'signup' ? 'Create Your Account' : 'Welcome Back'}</h1>
             <p>
               {authMode === 'signup'
-                ? 'Create a unique code to start managing your follow-ups.'
-                : 'Enter your details to access your follow-up assignments.'}
+                ? 'Create an account to start managing your follow-ups.'
+                : 'Enter your credentials to access your assignments.'}
             </p>
           </div>
         </section>
@@ -245,33 +301,46 @@ function App() {
               className={authMode === 'signup' ? 'active' : ''}
               onClick={() => { setAuthMode('signup'); setMessage('') }}
             >
-              Create Code
+              Sign Up
             </button>
           </div>
           <form onSubmit={handleFollowupAuth}>
-            <label htmlFor="name">Full Name</label>
-            <input type="text" id="name" name="name" required />
-
-            <label htmlFor="code">{authMode === 'signup' ? 'New Code' : 'Your Code'}</label>
+            <label htmlFor="email">Email Address</label>
             <input
-              type="text"
-              id="code"
-              name="code"
-              placeholder="e.g., WORKER-001"
+              type="email"
+              id="email"
+              name="email"
+              placeholder="you@example.com"
+              required
+            />
+
+            {authMode === 'signup' && (
+              <>
+                <label htmlFor="name">Full Name</label>
+                <input type="text" id="name" name="name" required />
+              </>
+            )}
+
+            <label htmlFor="password">Password</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              placeholder="Min. 6 characters"
               required
             />
 
             {message && <div className="form-message">{message}</div>}
 
-            <button type="submit" className="primary">
-              {authMode === 'signup' ? 'Create Code' : 'Sign In'}
+            <button type="submit" className="primary" disabled={loading}>
+              {loading ? (authMode === 'signup' ? 'Creating...' : 'Signing in...') : (authMode === 'signup' ? 'Create Account' : 'Sign In')}
               <span>→</span>
             </button>
           </form>
           <small>
             {authMode === 'signup'
-              ? 'Already have a code? Switch to Sign In above.'
-              : "Don't have a code? Ask your administrator or create one above."}
+              ? 'Already have an account? Switch to Sign In above.'
+              : "Don't have an account? Ask your administrator or create one above."}
           </small>
         </div>
       </main>
@@ -288,11 +357,11 @@ function App() {
           </button>
           <div className="user-menu">
             <div>
-              <strong>{activeUser.name}</strong>
-              <small>{activeUser.code}</small>
+              <strong>{activeUser.user_metadata?.full_name || activeUser.email?.split('@')[0]}</strong>
+              <small>{activeUser.email}</small>
             </div>
-            <div className="avatar">{activeUser.name.charAt(0).toUpperCase()}</div>
-            <button className="signout" onClick={handleSignOut}>
+            <div className="avatar">{(activeUser.user_metadata?.full_name || 'U').charAt(0).toUpperCase()}</div>
+            <button className="signout" onClick={handleSignOut} disabled={loading}>
               Sign out
             </button>
           </div>
@@ -303,7 +372,11 @@ function App() {
             <h1>Your Assignments</h1>
             <p>Update the status of your assigned members each week</p>
           </div>
-          <button className="primary" onClick={() => document.querySelector('form')?.requestSubmit()}>
+          <button
+            className="primary"
+            onClick={() => document.querySelector('form')?.requestSubmit()}
+            disabled={loading}
+          >
             Submit Updates <span>→</span>
           </button>
         </div>
@@ -379,7 +452,7 @@ function App() {
                       <td>
                         <select
                           name={`person-${person.id}-status`}
-                          value={person.status}
+                          defaultValue={person.status}
                           onChange={(e) => updatePerson(person.id, 'status', e.target.value)}
                         >
                           <option>Visiting member</option>
@@ -391,7 +464,7 @@ function App() {
                       <td>
                         <select
                           name={`person-${person.id}-service`}
-                          value={person.service}
+                          defaultValue={person.service}
                           onChange={(e) => updatePerson(person.id, 'service', e.target.value)}
                         >
                           <option>Not yet recorded</option>
@@ -413,7 +486,7 @@ function App() {
                 <button
                   type="submit"
                   className="primary"
-                  disabled={loading}
+                  disabled={loading || people.length === 0}
                   style={{ maxWidth: '300px' }}
                 >
                   {loading ? 'Saving...' : 'Submit Weekly Updates'}
