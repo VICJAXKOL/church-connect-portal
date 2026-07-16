@@ -42,7 +42,9 @@ function App() {
     if (isSupabaseConfigured) {
       checkAuth()
     } else {
-      setInitializing(false)
+      setTimeout(() => {
+        setInitializing(false)
+      }, 0)
     }
   }, [])
 
@@ -205,6 +207,7 @@ function App() {
         setMessage(result.error)
       }
     } catch (err) {
+      console.error('Sign out error:', err)
       setMessage('Sign out failed')
     } finally {
       setLoading(false)
@@ -545,12 +548,12 @@ function App() {
               <option value="Wednesday Bible Study">Wednesday Bible Study</option>
             </select>
 
-            <label htmlFor="serviceCode">Service Code (if provided)</label>
+            <label htmlFor="serviceCode">Attendance Code</label>
             <input
               type="text"
               id="serviceCode"
               name="serviceCode"
-              placeholder="Ask usher for code"
+              placeholder="Enter attendance code"
             />
 
             {message && (

@@ -69,6 +69,7 @@ export const getCurrentUser = async () => {
     if (error) throw error
     return user
   } catch (err) {
+    console.error('Error fetching current user:', err)
     return null
   }
 }
