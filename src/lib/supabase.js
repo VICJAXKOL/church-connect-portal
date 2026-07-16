@@ -1,8 +1,9 @@
+/* global process */
+
 import { createClient } from '@supabase/supabase-js'
 
-const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {}
-const url = env.VITE_SUPABASE_URL
-const anonKey = env.VITE_SUPABASE_ANON_KEY
+const url = import.meta.env?.VITE_SUPABASE_URL || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : undefined)
+const anonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined)
 
 export const isSupabaseConfigured = Boolean(url && anonKey)
 
