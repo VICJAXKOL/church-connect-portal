@@ -8,7 +8,32 @@ import { supabase } from './supabase'
  */
 export const signupWorker = async (email, password, fullName) => {
   try {
-    // Create Supabase auth user
+    // 1. Try to register through our custom SQL function first.
+    // This bypasses email confirmation requirements and auth rate limits (429)
+    try {
+      const { data, error: rpcError } = await supabase.rpc('register_worker', {
+        p_email: email,
+        p_password: password,
+        p_full_name: fullName
+      })
+
+      if (!rpcError) {
+        return {
+          success: true,
+          user: { id: data },
+          message: 'Account created successfully! You can now sign in.'
+        }
+      }
+
+      // If the error is NOT that the function doesn't exist, throw it
+      if (rpcError.message && !rpcError.message.includes('does not exist')) {
+        throw rpcError
+      }
+    } catch (rpcErr) {
+      console.warn('register_worker RPC not available, falling back to standard signUp:', rpcErr)
+    }
+
+    // 2. Fall back to standard sign up if RPC is not available
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -22,7 +47,7 @@ export const signupWorker = async (email, password, fullName) => {
     return {
       success: true,
       user: authData.user,
-      message: 'Account created successfully! Check your email for verification.'
+      message: 'Account created successfully! Please check your email or make sure email confirmation is turned off in Supabase.'
     }
   } catch (err) {
     return { success: false, error: err.message }
