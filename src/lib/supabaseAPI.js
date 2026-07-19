@@ -74,6 +74,18 @@ export const getCurrentUser = async () => {
   }
 }
 
+// ===== HELPER FUNCTIONS =====
+
+/**
+ * Get the week start date (Monday of current week)
+ */
+const getWeekStart = () => {
+  const today = new Date()
+  const day = today.getDay()
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1) // Adjust to Monday
+  return new Date(today.setDate(diff)).toISOString().split('T')[0]
+}
+
 // ===== ASSIGNED PEOPLE FUNCTIONS =====
 
 /**
@@ -91,6 +103,7 @@ export const getAssignedPeople = async (workerId) => {
         status,
         follow_up_assignments (
           id,
+          created_at,
           follow_up_updates (
             id,
             called,
@@ -107,10 +120,14 @@ export const getAssignedPeople = async (workerId) => {
 
     if (error) throw error
 
-    // Transform to include assignment and latest update
+    // Transform to include assignment and updates list
     return data.map((person) => {
-      const assignment = person.follow_up_assignments[0]
-      const latestUpdate = assignment?.follow_up_updates?.[0] || null
+      const assignment = person.follow_up_assignments[0] || { id: null, created_at: null, follow_up_updates: [] }
+      const updates = assignment.follow_up_updates || []
+
+      // Find current week's update
+      const currentWeekStart = getWeekStart()
+      const latestUpdate = updates.find(u => u.week_start === currentWeekStart) || null
 
       return {
         id: person.id,
@@ -124,7 +141,8 @@ export const getAssignedPeople = async (workerId) => {
         note: latestUpdate?.note || '',
         assignmentId: assignment.id,
         updateId: latestUpdate?.id,
-        weekStart: latestUpdate?.week_start
+        weekStart: latestUpdate?.week_start,
+        allUpdates: updates
       }
     })
   } catch (err) {
@@ -134,16 +152,6 @@ export const getAssignedPeople = async (workerId) => {
 }
 
 // ===== FOLLOW-UP UPDATE FUNCTIONS =====
-
-/**
- * Get the week start date (Monday of current week)
- */
-const getWeekStart = () => {
-  const today = new Date()
-  const day = today.getDay()
-  const diff = today.getDate() - day + (day === 0 ? -6 : 1) // Adjust to Monday
-  return new Date(today.setDate(diff)).toISOString().split('T')[0]
-}
 
 /**
  * Upsert (insert or update) a follow-up update for a person
