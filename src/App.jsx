@@ -319,13 +319,36 @@ function App() {
           return
         }
 
-        setMessage(result.error)
+        let friendlyError = result.error
+        if (result.error && (result.error.toLowerCase().includes('email not confirmed') || result.error.toLowerCase().includes('confirm'))) {
+          friendlyError = (
+            <div style={{ textAlign: 'left', marginTop: '12px', padding: '12px', fontSize: '13px', lineHeight: '1.45', background: '#fff5f5', border: '1px solid #ffc9c9', borderRadius: '8px', color: '#c53030' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚠️ Email Confirmation Required</div>
+              Supabase Auth requires email confirmation by default. To sign in with Name & Password:
+              <ol style={{ margin: '8px 0 0 16px', padding: 0, listStyleType: 'decimal' }}>
+                <li>Go to your <strong>Supabase Dashboard</strong>.</li>
+                <li>Navigate to <strong>Authentication &gt; Providers &gt; Email</strong>.</li>
+                <li>Toggle <strong>"Confirm email" to OFF</strong> and click <strong>Save</strong>.</li>
+              </ol>
+            </div>
+          )
+        }
+
+        setMessage(friendlyError)
         setLoading(false)
         return
       }
 
       if (authMode === 'signup') {
-        setMessage('Account created! You can now sign in.')
+        setMessage(
+          <div style={{ textAlign: 'left', marginTop: '12px', padding: '12px', fontSize: '13px', lineHeight: '1.45', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', color: '#166534' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>✓ Account created!</div>
+            Please sign in using your Full Name & Password.
+            <div style={{ fontSize: '11px', marginTop: '6px', color: '#15803d', borderTop: '1px dashed #bbf7d0', paddingTop: '6px' }}>
+              <strong>Note:</strong> If you get "Email not confirmed" on sign in, please toggle OFF "Confirm email" in your Supabase Auth settings.
+            </div>
+          </div>
+        )
         setAuthMode('signin')
       } else {
         // Get current user and their assigned people
