@@ -1,12 +1,29 @@
-# Supabase Setup: Bypass "Email Confirmation Required"
+# Supabase Setup: Bypass "Email Confirmation Required" and "Email Logins are Disabled"
 
-To fix the **"Email Confirmation Required"** error on your live application (such as Vercel) and bypass email verification / signUp rate limits, you must run the following custom SQL function in your Supabase SQL Editor.
+To fix the **"Email Confirmation Required"** or **"Email logins are disabled"** errors on your live application (such as Vercel) and bypass email verification / signUp rate limits, follow the setup instructions below.
 
-This function allows workers to register with their **Full Name & Password** and marks them as **pre-confirmed** immediately inside the Supabase database.
+Name-based login translates worker names into pseudo-emails (`victor.thompson.gcccigando@gmail.com`) under the hood, meaning the **Email Auth Provider must be enabled** in your Supabase dashboard, but email confirmation itself can be disabled.
+
+---
+
+## Quick Fix for "Email logins are disabled"
+
+If you see this error on screen, it means the Email Provider is completely disabled in your Supabase project. To turn it on:
+
+1. Open your **[Supabase Dashboard](https://supabase.com/dashboard)**.
+2. Select your project **`church-connect-portal`**.
+3. In the left-hand sidebar, click **Authentication** (the key icon).
+4. Select **Providers** under the settings column.
+5. Expand the **Email** provider accordion.
+6. Toggle **"Enable Email provider"** to **ON**.
+7. Toggle **"Confirm email"** to **OFF** (this bypasses SMTP/email confirmation).
+8. Scroll to the bottom and click **Save**.
 
 ---
 
 ## Method 1: Apply SQL Bypass Function (Highly Recommended)
+
+Running this SQL query creates a secure registrar function inside your database that automatically bypasses Supabase auth limits and confirmation queues for your follow-up workers.
 
 ### Step 1: Copy the SQL Script Below
 
@@ -128,4 +145,4 @@ If you prefer to disable the email confirmation requirement for standard signups
 5. Find the **"Confirm email"** switch and toggle it to **OFF**.
 6. Scroll down and click **Save**.
 
-*Note: If you have already attempted a signup that failed with "Email not confirmed", go to **Authentication > Users** in the sidebar, find that user (e.g. `bola ahmed`), click the `...` menu next to them, and select **Delete User** so they can sign up fresh without errors.*
+*Note: If you have already attempted a signup that failed with "Email not confirmed", go to **Authentication > Users** in the sidebar, find that user (e.g. `bola ahmed` or `Victor Thompson`), click the `...` menu next to them, and select **Delete User** so they can sign up fresh without errors.*
