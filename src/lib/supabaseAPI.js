@@ -126,7 +126,7 @@ export const getAssignedPeople = async (workerId) => {
         phone,
         email,
         status,
-        follow_up_assignments (
+        follow_up_assignments!inner (
           id,
           created_at,
           follow_up_updates (

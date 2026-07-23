@@ -34,6 +34,7 @@ function App() {
           const assignedPeople = await getAssignedPeople(user.id)
           setPeople(assignedPeople)
           setView('dashboard')
+          setMessage('')
         }
       } catch (err) {
         console.error('Auth check failed:', err)
@@ -552,7 +553,7 @@ function App() {
   }
 
   // FOLLOW-UP DASHBOARD VIEW
-  if (view === 'followup' && activeUser) {
+  if ((view === 'followup' || view === 'dashboard') && activeUser) {
     const trackerWeeks = [3, 2, 1, 0].map((weeksAgo) => {
       const dateStr = getWeekStartForOffset(weeksAgo)
       let label = ''
@@ -587,7 +588,15 @@ function App() {
           </div>
 
           {message && (
-            <div style={{ padding: '10px', fontSize: '13px', borderRadius: '8px', background: message.includes('failed') || message.includes('Failed') ? '#fdf2e9' : '#eef4ed', border: '1px solid', borderColor: message.includes('failed') || message.includes('Failed') ? '#f4e1d1' : '#dbe9d8', color: '#24382e' }}>
+            <div style={{
+              padding: '10px',
+              fontSize: '13px',
+              borderRadius: '8px',
+              background: (typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error') || message.toLowerCase().includes('invalid'))) ? '#fdf2e9' : '#eef4ed',
+              border: '1px solid',
+              borderColor: (typeof message === 'string' && (message.toLowerCase().includes('failed') || message.toLowerCase().includes('error') || message.toLowerCase().includes('invalid'))) ? '#f4e1d1' : '#dbe9d8',
+              color: '#24382e'
+            }}>
               {message}
             </div>
           )}
@@ -833,7 +842,7 @@ function App() {
             />
 
             {message && (
-              <div className={`form-message ${message.includes('Thank you') ? 'success-message' : ''}`}>
+              <div className={`form-message ${typeof message === 'string' && message.includes('Thank you') ? 'success-message' : ''}`}>
                 {message}
               </div>
             )}
