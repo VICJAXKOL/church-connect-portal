@@ -11,6 +11,23 @@ import {
   upsertFollowupUpdate
 } from './lib/supabaseAPI'
 
+const GENERIC_PERSON = {
+  id: 'generic-placeholder',
+  name: 'Ugochukwu Saviour',
+  phone: '07035988695',
+  email: '',
+  status: 'Intending member',
+  service: 'Not yet recorded',
+  called: false,
+  texted: false,
+  note: '',
+  assignmentId: null,
+  updateId: null,
+  weekStart: '',
+  allUpdates: [],
+  isPlaceholder: true
+}
+
 function App() {
   const [view, setView] = useState('home')
   const [authMode, setAuthMode] = useState('signin') // 'signin' or 'signup'
@@ -33,7 +50,7 @@ function App() {
           // Load their assigned people
           const assignedPeople = await getAssignedPeople(user.id)
           setPeople(assignedPeople)
-          setView('dashboard')
+          setView('followup')
         }
       } catch (err) {
         console.error('Auth check failed:', err)
@@ -357,7 +374,7 @@ function App() {
           setActiveUser(user)
           const assignedPeople = await getAssignedPeople(user.id)
           setPeople(assignedPeople)
-          setView('dashboard')
+          setView('followup')
           setMessage('')
         }
       }
