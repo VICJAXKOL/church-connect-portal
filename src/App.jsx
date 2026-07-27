@@ -143,7 +143,7 @@ function App() {
   const getOutreachLinks = (person) => {
     const workerName = activeUser?.user_metadata?.full_name || 'Your GCCC Follow-up Worker'
     const memberName = person.name || 'Member'
-    const messageText = `Hello ${memberName}! This is ${workerName} from Grace Covenant Christian Centre (GCCC). We are so glad to have you with us and wanted to check in to see how you are doing this week. Please let us know if there's any way we can pray for you or assist you! God bless you.`
+    const messageText = `Hello ${memberName}! This is ${workerName} from Glory Centre Community Church (GCCC). We are so glad to have you with us and wanted to check in to see how you are doing this week. Please let us know if there's any way we can pray for you or assist you! God bless you.`
 
     const cleanPhone = person.phone ? person.phone.replace(/[^0-9+]/g, '') : ''
 
