@@ -11,6 +11,52 @@ import {
   upsertFollowupUpdate
 } from './lib/supabaseAPI'
 
+// Get week start string YYYY-MM-DD for offset weeksAgo
+const getWeekStartForOffset = (weeksAgo = 0) => {
+  const today = new Date()
+  const day = today.getDay()
+  const diff = today.getDate() - day + (day === 0 ? -6 : 1) - (weeksAgo * 7)
+  return new Date(today.setDate(diff)).toISOString().split('T')[0]
+}
+
+// Generate realistic mock people for demo/testing before real data is connected
+const generateMockPeople = (count) => {
+  const firstNames = ['Ugochukwu', 'Chinwe', 'Emeka', 'Ngozi', 'Olamide', 'Amina', 'Tunde', 'Fatima', 'Obinna', 'Yewande', 'Ikechukwu', 'Adaeze']
+  const lastNames = ['Saviour', 'Okonkwo', 'Adeyemi', 'Okafor', 'Balogun', 'Ibrahim', 'Nwosu', 'Abubakar', 'Eze', 'Ajayi', 'Onwumere', 'Chukwu']
+  const addresses = ['Vulcanizer', 'Market Road', 'Church Street', 'Ojuelegba', 'Ikeja', 'Yaba', 'Surulere', 'Ikoyi', 'Agege', 'Ikorodu']
+  const genders = ['Male', 'Female']
+  const statuses = ['Visiting member', 'Intending member', 'Active member', 'Inactive']
+
+  return Array.from({ length: count }, (_, i) => {
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)]
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)]
+    const gender = genders[Math.floor(Math.random() * genders.length)]
+    const phonePrefix = ['070', '080', '090', '081'][Math.floor(Math.random() * 4)]
+    const phone = `${phonePrefix}${Math.floor(10000000 + Math.random() * 90000000)}`
+    const status = statuses[Math.floor(Math.random() * statuses.length)]
+    const address = addresses[Math.floor(Math.random() * addresses.length)]
+
+    return {
+      id: `${i}-${firstName.toLowerCase()}-${lastName.toLowerCase()}-${Date.now()}`,
+      name: `${firstName} ${lastName}`,
+      phone,
+      email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@example.com`,
+      gender,
+      address,
+      status,
+      service: 'Not yet recorded',
+      called: false,
+      texted: false,
+      note: '',
+      feedback: '',
+      assignmentId: `assignment-${i}-${Date.now()}`,
+      updateId: null,
+      weekStart: getWeekStartForOffset(0),
+      allUpdates: []
+    }
+  })
+}
+
 function App() {
   const [view, setView] = useState('home')
   const [authMode, setAuthMode] = useState('signin') // 'signin' or 'signup'
@@ -30,10 +76,10 @@ function App() {
         const user = await getCurrentUser()
         if (user) {
           setActiveUser(user)
-          // Load their assigned people
+          // Load their assigned people (fallback to mock data for preview)
           const assignedPeople = await getAssignedPeople(user.id)
-          setPeople(assignedPeople)
-          setView('dashboard')
+          setPeople(assignedPeople.length > 0 ? assignedPeople : generateMockPeople(Math.floor(Math.random() * 3) + 1))
+          setView('followup')
         }
       } catch (err) {
         console.error('Auth check failed:', err)
@@ -69,14 +115,6 @@ function App() {
   const getPseudoEmail = (name) => {
     const clean = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '.')
     return `${clean}.gcccigando@gmail.com`
-  }
-
-  // Get week start string YYYY-MM-DD for offset weeksAgo
-  const getWeekStartForOffset = (weeksAgo = 0) => {
-    const today = new Date()
-    const day = today.getDay()
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1) - (weeksAgo * 7) // Adjust to Monday and subtract weeks
-    return new Date(today.setDate(diff)).toISOString().split('T')[0]
   }
 
   // Calculate dot color for a specific person on a specific week date
@@ -272,46 +310,7 @@ function App() {
             user_metadata: { full_name: fullName }
           }
           setActiveUser(mockUser)
-          const mockAssigned = [
-            {
-              id: '11111111-1111-1111-1111-111111111111',
-              name: 'John Doe',
-              phone: '+1234567890',
-              email: 'johndoe@example.com',
-              status: 'Visiting member',
-              service: 'Not yet recorded',
-              called: false,
-              texted: false,
-              note: '',
-              assignmentId: '22222222-2222-2222-2222-222222222222',
-              updateId: null,
-              weekStart: getWeekStartForOffset(0),
-              allUpdates: [
-                { week_start: getWeekStartForOffset(1), called: true, texted: false, member_status: 'Visiting member', service_attendance: 'Not yet recorded' },
-                { week_start: getWeekStartForOffset(2), called: true, texted: true, member_status: 'Active member', service_attendance: 'Sunday Service' }
-              ]
-            },
-            {
-              id: '33333333-3333-3333-3333-333333333333',
-              name: 'Sarah Smith',
-              phone: '+1987654321',
-              email: 'sarah@example.com',
-              status: 'Active member',
-              service: 'Sunday Service',
-              called: false,
-              texted: false,
-              note: 'Doing great!',
-              assignmentId: '44444444-4444-4444-4444-444444444444',
-              updateId: null,
-              weekStart: getWeekStartForOffset(0),
-              allUpdates: [
-                { week_start: getWeekStartForOffset(0), called: false, texted: false, member_status: 'Active member', service_attendance: 'Sunday Service' },
-                { week_start: getWeekStartForOffset(1), called: false, texted: false, member_status: 'Active member', service_attendance: 'Sunday Service' },
-                { week_start: getWeekStartForOffset(2), called: false, texted: false, member_status: 'Active member', service_attendance: 'Sunday Service' },
-                { week_start: getWeekStartForOffset(3), called: false, texted: false, member_status: 'Active member', service_attendance: 'Sunday Service' }
-              ]
-            }
-          ]
+          const mockAssigned = generateMockPeople(Math.floor(Math.random() * 3) + 1)
           setPeople(mockAssigned)
           setView('followup')
           setMessage('Welcome! (Demo Mode Fallback)')
@@ -320,7 +319,19 @@ function App() {
         }
 
         let friendlyError = result.error
-        if (result.error && (result.error.toLowerCase().includes('email not confirmed') || result.error.toLowerCase().includes('confirm'))) {
+        const errorLower = result.error ? result.error.toLowerCase() : ''
+
+        if (errorLower.includes('fetch') || errorLower.includes('network') || errorLower.includes('offline') || errorLower.includes('name_not_resolved')) {
+          friendlyError = (
+            <div style={{ textAlign: 'left', marginTop: '12px', padding: '12px', fontSize: '13px', lineHeight: '1.45', background: '#fff5f5', border: '1px solid #ffc9c9', borderRadius: '8px', color: '#c53030' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚠️ Connection Error</div>
+              Unable to connect to the follow-up server. Please check your internet connection and try again.
+              <div style={{ fontSize: '11px', marginTop: '6px', color: '#c53030', borderTop: '1px dashed #ffc9c9', paddingTop: '6px' }}>
+                <strong>Tip:</strong> To test without a server, sign in with a name containing "demo" or "test".
+              </div>
+            </div>
+          )
+        } else if (errorLower.includes('email not confirmed') || errorLower.includes('confirm')) {
           friendlyError = (
             <div style={{ textAlign: 'left', marginTop: '12px', padding: '12px', fontSize: '13px', lineHeight: '1.45', background: '#fff5f5', border: '1px solid #ffc9c9', borderRadius: '8px', color: '#c53030' }}>
               <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>⚠️ Email Confirmation Required</div>
@@ -356,8 +367,8 @@ function App() {
         if (user) {
           setActiveUser(user)
           const assignedPeople = await getAssignedPeople(user.id)
-          setPeople(assignedPeople)
-          setView('dashboard')
+          setPeople(assignedPeople.length > 0 ? assignedPeople : generateMockPeople(Math.floor(Math.random() * 3) + 1))
+          setView('followup')
           setMessage('')
         }
       }
@@ -387,14 +398,14 @@ function App() {
         p_gender: data.get('gender'),
         p_worship_mode: data.get('mode'),
         p_service_day: data.get('service'),
-        p_service_code: data.get('serviceCode'),
+        p_service_code: '',
       })
 
       if (error) throw error
 
       form.reset()
-      setMessage('Attendance recorded. Thank you for joining us!')
-      setTimeout(() => goHome(), 2000)
+      setMessage('Attendance recorded|Thank you for joining us. God bless you!')
+      setTimeout(() => goHome(), 3000)
     } catch (err) {
       setMessage(err.message || 'Failed to record attendance.')
     } finally {
@@ -438,19 +449,19 @@ function App() {
   if (view === 'home') {
     return (
       <main className="reference-home">
-        <nav>
-          <button className="brand" onClick={goHome}>
-            <span className="brand-mark">✦</span> Connect
-          </button>
-          <span className="nav-note">Member Portal</span>
-        </nav>
         <section className="reference-home-hero">
+          <div className="hero-logo">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="4" y="10" width="40" height="6" rx="3" fill="#ef4660" />
+              <rect x="4" y="19" width="40" height="6" rx="3" fill="#3157a8" />
+              <rect x="4" y="28" width="40" height="6" rx="3" fill="#0dadd6" />
+            </svg>
+          </div>
+          <span className="hero-kicker">Member Portal</span>
           <div className="reference-title">
-            <span className="section-kicker">Welcome to</span>
-            <h1>Glory Center <em>Community</em> Church</h1>
+            <h1>Glory Center Community Church</h1>
             <p>
-              Connect with our community through follow-up care, attendance tracking, and
-              member updates. Choose how you'd like to engage.
+              Welcome to Glory Center Community Church Igando, Choose a module below to get started.
             </p>
           </div>
         </section>
@@ -461,20 +472,32 @@ function App() {
               onClick={() => setView('followup')}
               style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}
             >
-              <div className="slate-icon">👥</div>
-              <h3>Follow-up Team</h3>
-              <p>Clock in as a follow-up worker and manage your assigned members.</p>
-              <span className="arrow">→</span>
+              <div className="slate-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <h3>Follow-Up</h3>
+              <p>Sign in to view and update member follow-up records.</p>
+              <span className="slate-link">Sign in →</span>
             </button>
             <button
               className="slate"
               onClick={() => setView('attendance')}
               style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}
             >
-              <div className="slate-icon">✓</div>
+              <div className="slate-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+              </div>
               <h3>Attendance</h3>
-              <p>Record your attendance for today's service.</p>
-              <span className="arrow">→</span>
+              <p>Log your attendance for services and gatherings.</p>
+              <span className="slate-link">Open form →</span>
             </button>
           </div>
         </section>
@@ -564,153 +587,105 @@ function App() {
     })
 
     return (
-      <main className="mobile-dashboard-wrap">
-        <div className="mobile-dashboard-container">
-          <header className="mobile-topbar">
-            <button className="brand" onClick={goHome}>
-              <span className="brand-mark">✦</span> Connect
-            </button>
-            <div className="user-menu">
-              <div className="avatar">{(activeUser.user_metadata?.full_name || 'U').charAt(0).toUpperCase()}</div>
-              <button className="signout-btn" onClick={handleSignOut} disabled={loading}>
-                Sign out
-              </button>
-            </div>
-          </header>
-
-          <div className="mobile-heading">
-            <h1>Your Assignments</h1>
-            <p>Update status for each assigned member</p>
-            <div className="stats-text">
-              {people.length} member{people.length !== 1 ? 's' : ''} in your care
+      <main className="followup-dashboard">
+        <header className="followup-hero">
+          <div className="followup-hero-top">
+            <button className="followup-back" onClick={goHome}>← Back</button>
+            <div className="followup-hero-actions">
+              <button className="followup-refresh" onClick={() => window.location.reload()}>↻ Refresh</button>
+              <button className="followup-signout" onClick={handleSignOut} disabled={loading}>Sign out</button>
             </div>
           </div>
+          <div className="followup-hero-content">
+            <span className="followup-kicker">FOLLOWUP MODULE</span>
+            <h1>Welcome, {activeUser.user_metadata?.full_name || 'Follow-up Worker'}</h1>
+            <p>You have {people.length} assigned number{people.length !== 1 ? 's' : ''}.</p>
+          </div>
+        </header>
 
-          {message && (
-            <div style={{ padding: '10px', fontSize: '13px', borderRadius: '8px', background: message.includes('failed') || message.includes('Failed') ? '#fdf2e9' : '#eef4ed', border: '1px solid', borderColor: message.includes('failed') || message.includes('Failed') ? '#f4e1d1' : '#dbe9d8', color: '#24382e' }}>
-              {message}
-            </div>
-          )}
+        {message && (
+          <div className="followup-message-banner">
+            {message}
+          </div>
+        )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '32px' }}>
-            {people.map((person) => {
-              const isUnlocked = Boolean(unlockedCards[person.id])
-              const currentSaveStatus = saveStatus[person.id] || 'idle'
-              const links = getOutreachLinks(person)
-              const hasPhone = Boolean(person.phone && person.phone.trim())
+        <div className="followup-cards">
+          {people.map((person) => {
+            const isUnlocked = Boolean(unlockedCards[person.id])
+            const currentSaveStatus = saveStatus[person.id] || 'idle'
+            const links = getOutreachLinks(person)
+            const hasPhone = Boolean(person.phone && person.phone.trim())
 
-              return (
-                <div key={person.id} className={`contact-card ${isUnlocked ? 'unlocked' : ''}`}>
-                  <div className="card-top">
-                    <div className="card-info">
-                      <div className="card-name">{person.name}</div>
-                      {hasPhone ? (
-                        <a href={`tel:${person.phone}`} className="card-phone">📞 {person.phone}</a>
-                      ) : (
-                        <span className="card-phone" style={{ color: '#9ca39b' }}>No phone available</span>
-                      )}
-                    </div>
+            return (
+              <div key={person.id} className={`followup-card ${isUnlocked ? 'unlocked' : ''}`}>
+                {/* 4-dot tracker */}
+                <div className="card-top-dots">
+                  {trackerWeeks.map((wk) => {
+                    const colorClass = getDotColor(person, wk.dateStr)
+                    return (
+                      <span
+                        key={wk.weeksAgo}
+                        className={`card-top-dot ${colorClass}`}
+                        title={`${wk.label}: ${wk.dateStr}`}
+                      />
+                    )
+                  })}
+                </div>
+
+                <h2 className="card-person-name">{person.name}</h2>
+                <span className="card-status-badge">{person.status}</span>
+
+                <div className="card-fields">
+                  <div className="card-field">
+                    <span className="card-field-label">Phone Number:</span>
+                    <span className="card-field-value">{hasPhone ? person.phone : 'Not available'}</span>
+                  </div>
+                  <div className="card-field">
+                    <span className="card-field-label">Gender:</span>
+                    <span className="card-field-value">{person.gender || 'Not specified'}</span>
+                  </div>
+                  <div className="card-field">
+                    <span className="card-field-label">Address:</span>
+                    <span className="card-field-value">{person.address || 'Not specified'}</span>
+                  </div>
+                </div>
+
+                <div className="card-feedback">
+                  <div className="card-feedback-header">
+                    <span>Feedback:</span>
                     <button
                       type="button"
-                      className={`card-lock-btn ${isUnlocked ? 'unlocked-state' : ''}`}
-                      onClick={() => {
-                        setUnlockedCards(prev => ({ ...prev, [person.id]: !isUnlocked }))
-                      }}
+                      className="card-edit-btn"
+                      onClick={() => setUnlockedCards(prev => ({ ...prev, [person.id]: !isUnlocked }))}
                     >
-                      {isUnlocked ? '🔓 Unlocked' : '🔒 Locked'}
+                      {isUnlocked ? 'Cancel' : '✎ Edit'}
                     </button>
                   </div>
+                  <p className="card-feedback-text">{person.note || person.feedback || 'No feedback yet.'}</p>
+                </div>
 
-                  {/* 4-dot tracker row */}
-                  <div className="tracker-row">
-                    <div className="tracker-row-header">
-                      <span>4-Week History</span>
-                      <span style={{ fontSize: '9px', fontWeight: 'normal' }}>Older → Newer</span>
-                    </div>
-                    <div className="tracker-dots">
-                      {trackerWeeks.map((wk) => {
-                        const colorClass = getDotColor(person, wk.dateStr)
-                        return (
-                          <div key={wk.weeksAgo} className="tracker-dot-container" title={`${wk.label}: ${wk.dateStr}`}>
-                            <span className={`tracker-dot ${colorClass}`}></span>
-                            <span className="tracker-dot-label">{wk.label}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Outreach buttons */}
-                  <div className="outreach-row">
-                    {hasPhone ? (
-                      <>
-                        <a
-                          href={links.call}
-                          className="outreach-btn call-btn"
-                          onClick={() => {
-                            setUnlockedCards(prev => ({ ...prev, [person.id]: true }))
-                            updatePerson(person.id, 'called', true)
-                          }}
-                        >
-                          📞 Call
-                        </a>
-                        <a
-                          href={links.sms}
-                          className="outreach-btn sms-btn"
-                          onClick={() => {
-                            setUnlockedCards(prev => ({ ...prev, [person.id]: true }))
-                            updatePerson(person.id, 'texted', true)
-                          }}
-                        >
-                          💬 SMS
-                        </a>
-                        <a
-                          href={links.whatsapp}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="outreach-btn wa-btn"
-                          onClick={() => {
-                            setUnlockedCards(prev => ({ ...prev, [person.id]: true }))
-                            updatePerson(person.id, 'texted', true)
-                          }}
-                        >
-                          🟢 WA
-                        </a>
-                      </>
-                    ) : (
-                      <div style={{ width: '100%', textAlign: 'center', fontSize: '11px', color: '#748078', padding: '10px 0' }}>
-                        Add phone number to enable quick outreach options.
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Form fields */}
-                  <div className="card-form">
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                {isUnlocked && (
+                  <div className="card-form-section">
+                    <div className="card-form-grid">
+                      <div className="form-group inline-check">
                         <button
                           type="button"
                           className={`check ${person.called ? 'checked' : ''}`}
-                          disabled={!isUnlocked}
                           onClick={() => updatePerson(person.id, 'called', !person.called)}
-                          style={{ margin: 0 }}
                         >
                           {person.called ? '✓' : ''}
                         </button>
-                        <span onClick={() => isUnlocked && updatePerson(person.id, 'called', !person.called)} style={{ fontSize: '12px', fontWeight: 600, color: '#24382e', userSelect: 'none' }}>Called</span>
+                        <span>Called</span>
                       </div>
-
-                      <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <div className="form-group inline-check">
                         <button
                           type="button"
                           className={`check ${person.texted ? 'checked' : ''}`}
-                          disabled={!isUnlocked}
                           onClick={() => updatePerson(person.id, 'texted', !person.texted)}
-                          style={{ margin: 0 }}
                         >
                           {person.texted ? '✓' : ''}
                         </button>
-                        <span onClick={() => isUnlocked && updatePerson(person.id, 'texted', !person.texted)} style={{ fontSize: '12px', fontWeight: 600, color: '#24382e', userSelect: 'none' }}>Texted</span>
+                        <span>Texted</span>
                       </div>
                     </div>
 
@@ -718,7 +693,6 @@ function App() {
                       <label>Member Status</label>
                       <select
                         value={person.status}
-                        disabled={!isUnlocked}
                         onChange={(e) => updatePerson(person.id, 'status', e.target.value)}
                       >
                         <option value="Visiting member">Visiting member</option>
@@ -732,7 +706,6 @@ function App() {
                       <label>Service Attended</label>
                       <select
                         value={person.service}
-                        disabled={!isUnlocked}
                         onChange={(e) => updatePerson(person.id, 'service', e.target.value)}
                       >
                         <option value="Not yet recorded">Not yet recorded</option>
@@ -743,11 +716,13 @@ function App() {
                     </div>
 
                     <div className="form-group">
-                      <label>Note</label>
+                      <label>Note / Feedback</label>
                       <textarea
-                        value={person.note}
-                        disabled={!isUnlocked}
-                        onChange={(e) => updatePerson(person.id, 'note', e.target.value)}
+                        value={person.note || person.feedback || ''}
+                        onChange={(e) => {
+                          updatePerson(person.id, 'note', e.target.value)
+                          updatePerson(person.id, 'feedback', e.target.value)
+                        }}
                         placeholder="Add a note..."
                       />
                     </div>
@@ -755,7 +730,7 @@ function App() {
                     <button
                       type="button"
                       className={`card-save-btn ${currentSaveStatus === 'success' ? 'success' : ''}`}
-                      disabled={!isUnlocked || currentSaveStatus === 'saving'}
+                      disabled={currentSaveStatus === 'saving'}
                       onClick={() => saveCard(person)}
                     >
                       {currentSaveStatus === 'saving' && '⏳ Saving...'}
@@ -764,16 +739,57 @@ function App() {
                       {currentSaveStatus === 'idle' && '💾 Save Changes'}
                     </button>
                   </div>
-                </div>
-              )
-            })}
+                )}
 
-            {people.length === 0 && (
-              <div className="no-assignments">
-                No members assigned yet. Contact your administrator.
+                <div className="card-actions">
+                  {hasPhone ? (
+                    <>
+                      <a
+                        href={links.call}
+                        className="card-action-btn call"
+                        onClick={() => updatePerson(person.id, 'called', true)}
+                      >
+                        📞
+                      </a>
+                      <a
+                        href={links.sms}
+                        className="card-action-btn sms"
+                        onClick={() => updatePerson(person.id, 'texted', true)}
+                      >
+                        💬
+                      </a>
+                      <a
+                        href={links.whatsapp}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="card-action-btn whatsapp"
+                        onClick={() => updatePerson(person.id, 'texted', true)}
+                      >
+                        🟢
+                      </a>
+                    </>
+                  ) : (
+                    <button type="button" className="card-action-btn" disabled>
+                      📵
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="card-action-btn note"
+                    onClick={() => setUnlockedCards(prev => ({ ...prev, [person.id]: !isUnlocked }))}
+                  >
+                    📝
+                  </button>
+                </div>
               </div>
-            )}
-          </div>
+            )
+          })}
+
+          {people.length === 0 && (
+            <div className="no-assignments">
+              No members assigned yet. Contact your administrator.
+            </div>
+          )}
         </div>
       </main>
     )
@@ -833,9 +849,19 @@ function App() {
             />
 
             {message && (
-              <div className={`form-message ${message.includes('Thank you') ? 'success-message' : ''}`}>
-                {message}
-              </div>
+              message.includes('|') ? (
+                <div className="attendance-success-banner">
+                  <div className="success-icon">✓</div>
+                  <div className="success-text">
+                    <strong>{message.split('|')[0]}</strong>
+                    <span>{message.split('|')[1]}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className={`form-message ${message.includes('Thank you') ? 'success-message' : ''}`}>
+                  {message}
+                </div>
+              )
             )}
 
             <button type="submit" className="primary" disabled={loading}>
