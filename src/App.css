@@ -1477,6 +1477,12 @@ td select {
   transition: transform 0.15s ease, background 0.2s ease;
 }
 
+.card-action-btn svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
 .card-action-btn:hover {
   transform: translateY(-2px);
 }
@@ -1487,6 +1493,7 @@ td select {
 .card-action-btn.note { background: #4a5568; }
 .card-action-btn:disabled {
   background: #cbd5e0;
+  color: #718096;
   cursor: not-allowed;
   transform: none;
 }
