@@ -666,7 +666,7 @@ td select {
   justify-content: center;
   text-align: center;
   padding: 50px 24px 66px;
-  background: linear-gradient(#174e9ed9, #174e9ed9), url('./assets/hero.png') center/cover;
+  background: linear-gradient(#164d9fdd, #164d9fdd), url('./assets/hero.png') center/cover;
 }
 
 .hero-logo {
@@ -781,7 +781,7 @@ td select {
 
 .reference-page { min-height: 100vh; background: #fff; display: block; padding: 0 0 50px; }
 .reference-hero, .attendance-hero { background: #3157a8; min-height: 348px; padding: 28px max(35px, calc((100vw - 412px) / 2)) 66px; color: #fff; }
-.reference-hero { background: linear-gradient(#164d9fdd, #164d9fdd), url('./assets/hero.png') center/cover; }
+.reference-hero, .attendance-hero { background: linear-gradient(#164d9fdd, #164d9fdd), url('./assets/hero.png') center/cover; }
 .reference-page .back { position: static; color: #fff; border: 0; background: none; font-size: 14px; font-weight: 600; }
 .reference-title { margin-top: 51px; }
 .reference-title .section-kicker { color: #d3ddf5; }
@@ -1203,8 +1203,7 @@ td select {
   position: relative;
   min-height: 260px;
   padding: 22px 24px 42px;
-  background: linear-gradient(135deg, #1a4d9e 0%, #2a6fdb 100%), url('./assets/hero.png') center/cover;
-  background-blend-mode: multiply;
+  background: linear-gradient(#164d9fdd, #164d9fdd), url('./assets/hero.png') center/cover;
   color: #fff;
 }
 
