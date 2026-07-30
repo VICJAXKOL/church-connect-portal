@@ -90,11 +90,21 @@ export const signoutWorker = async () => {
  */
 export const getCurrentUser = async () => {
   try {
+    // Check session first to avoid AuthSessionMissingError when no user is logged in
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return null
+
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error) throw error
     return user
   } catch (err) {
-    console.error('Error fetching current user:', err)
+    // Network errors are common in development/offline; don't spam the console
+    const isNetworkError = !err.status || err.name === 'AuthRetryableFetchError' || err.message?.toLowerCase().includes('fetch') || err.message?.toLowerCase().includes('network')
+    if (isNetworkError) {
+      console.warn('Network issue while fetching current user:', err.message || err)
+    } else {
+      console.error('Error fetching current user:', err)
+    }
     return null
   }
 }
